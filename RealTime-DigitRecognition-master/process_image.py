@@ -44,7 +44,7 @@ def image_refiner(gray):
     rowsPadding = (int(math.ceil((img_size-rows)/2.0)),int(math.floor((img_size-rows)/2.0)))
     
     #apply apdding 
-    gray = np.lib.pad(gray,(rowsPadding,colsPadding),'constant')
+    gray = np.pad(gray,(rowsPadding,colsPadding),'constant')
     return gray
 
 

@@ -19,6 +19,7 @@ Thumbs.db
 # Project Specific
 assets/out.png
 pip_list.txt
+marks.xlsx
 .gemini/
 .agent/
 brain/
