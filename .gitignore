@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.toast
+.ipynb_checkpoints
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project Specific
+assets/out.png
+pip_list.txt
+.gemini/
+.agent/
+brain/
