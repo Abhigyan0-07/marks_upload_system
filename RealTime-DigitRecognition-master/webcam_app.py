@@ -16,22 +16,23 @@ roi_selected = False
 def select_excel_file():
     """Opens a file dialog to select an Excel file."""
     root = tk.Tk()
-    root.withdraw()  # Hide the main tkinter window
-    print("Please select the Excel marksheet file...")
+    root.withdraw()
+    root.attributes("-topmost", True)
+    print("Please select the Excel marksheet file in the popup...")
+    
     file_path = filedialog.askopenfilename(
         title="Select Marksheet Excel File",
         filetypes=[("Excel files", "*.xlsx")]
     )
     
     if not file_path:
-        # If no file selected, create a default one
+        print("No file selected. Using default 'marks.xlsx'...")
         file_path = "marks.xlsx"
         if not os.path.exists(file_path):
             wb = Workbook()
             ws = wb.active
             ws.append(["Timestamp", "Identified Digits"])
             wb.save(file_path)
-            print(f"Created new default file: {file_path}")
     
     root.destroy()
     return file_path
@@ -47,7 +48,7 @@ def save_to_excel(file_path, digits):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         ws.append([timestamp, ", ".join(map(str, digits))])
         wb.save(file_path)
-        print(f"✅ Saved results {digits} to {os.path.basename(file_path)}")
+        print(f"✅ Saved: {digits}")
     except Exception as e:
         print(f"❌ Error saving to Excel: {e}")
 
@@ -68,47 +69,44 @@ def mouse_callback(event, x, y, flags, param):
         end_point = (x, y)
         is_dragging = False
         if start_point != end_point:
-            roi_selected = True
+            # Ensure ROI has some size
+            if abs(start_point[0] - end_point[0]) > 10 and abs(start_point[1] - end_point[1]) > 10:
+                roi_selected = True
 
-def process_roi(frame, sp, ep):
-    """Processes the manual area to extract and identify digits."""
-    x1, y1 = min(sp[0], ep[0]), min(sp[1], ep[1])
-    x2, y2 = max(sp[0], ep[0]), max(sp[1], ep[1])
+def get_digits_and_contours(roi):
+    """Utility to get contours and predict digits from a frame segment."""
+    if roi.size == 0:
+        return [], []
     
-    if x2 - x1 < 5 or y2 - y1 < 5:
-        return []
-
-    roi = frame[y1:y2, x1:x2]
     gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+    # Adaptive thresholding often works better for varying lighting
+    thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+                                   cv2.THRESH_BINARY_INV, 11, 2)
     
-    # Process ROI
-    ret, thresh = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY_INV)
-    contours, _ = cv2.findContours(thresh, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
-    found_digits = []
-    # Sort contours left to right
-    bounding_boxes = [cv2.boundingRect(c) for c in contours]
-    if not bounding_boxes:
-        return []
+    digits = []
+    boxes = []
     
-    # Filter and process
-    for (x, y, w, h) in sorted(bounding_boxes, key=lambda b: b[0]):
-        if w > 8 and h > 8:
-            digit_roi = thresh[y:y+h, x:x+w]
-            digit_roi = image_refiner(digit_roi)
-            pred = predict_digit(digit_roi)
-            found_digits.append(pred)
+    # Sort from left to right
+    sorted_contours = sorted(contours, key=lambda c: cv2.boundingRect(c)[0])
+    
+    for cnt in sorted_contours:
+        x, y, w, h = cv2.boundingRect(cnt)
+        if 5 < w < 100 and 15 < h < 150: # Filter typical digit sizes
+            digit_img = thresh[y:y+h, x:x+w]
+            digit_img = image_refiner(digit_img)
+            pred = predict_digit(digit_img)
+            digits.append(pred)
+            boxes.append((x, y, w, h))
             
-    return found_digits
+    return digits, boxes, thresh
 
 def main():
     excel_path = select_excel_file()
-    
-    # Use CAP_DSHOW for better Windows compatibility
     cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
     
     if not cap.isOpened():
-        print("Error: Could not open webcam. Trying default backend...")
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
             print("Fatal Error: No camera found.")
@@ -116,44 +114,48 @@ def main():
 
     cv2.namedWindow("Webcam Mark Scanner")
     cv2.setMouseCallback("Webcam Mark Scanner", mouse_callback)
-
+    
     print(f"\nTarget File: {excel_path}")
-    print("Instructions:")
-    print("1. Click and drag to MARK the box around the digits.")
-    print("2. Press 'S' to identify digits in the box and SAVE to Excel.")
-    print("3. Press 'Q' to Quit.")
+    print("1. Drag a box on the feed.")
+    print("2. Align digit inside green boxes.")
+    print("3. Press 'S' to save, 'Q' to quit.")
 
     while True:
         ret, frame = cap.read()
-        if not ret:
-            break
+        if not ret: break
 
-        # Draw current selection
         display_frame = frame.copy()
+        preview_thresh = None
+
         if start_point and end_point:
-            color = (0, 255, 255) if not is_dragging else (0, 165, 255)
-            cv2.rectangle(display_frame, start_point, end_point, color, 2)
+            x1, y1 = min(start_point[0], end_point[0]), min(start_point[1], end_point[1])
+            x2, y2 = max(start_point[0], end_point[0]), max(start_point[1], end_point[1])
+            
+            # Draw ROI
+            cv2.rectangle(display_frame, (x1, y1), (x2, y2), (0, 255, 255), 2)
+            
             if roi_selected:
-                cv2.putText(display_frame, "Ready to Scan", (start_point[0], start_point[1] - 10), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+                roi = frame[y1:y2, x1:x2]
+                digits, boxes, preview_thresh = get_digits_and_contours(roi)
+                
+                # Draw live feedback boxes
+                for (bx, by, bw, bh) in boxes:
+                    cv2.rectangle(display_frame, (x1+bx, y1+by), (x1+bx+bw, y1+by+bh), (0, 255, 0), 2)
+                
+                if digits:
+                    cv2.putText(display_frame, f"Detected: {digits}", (x1, y1 - 10), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                
+                if preview_thresh is not None:
+                    cv2.imshow("AI Preview (Binarized)", preview_thresh)
 
         cv2.imshow("Webcam Mark Scanner", display_frame)
 
         key = cv2.waitKey(1) & 0xFF
-        
-        if key == ord('q'):
-            break
-        elif key == ord('s'):
-            if roi_selected:
-                print("Scanning selected zone...")
-                digits = process_roi(frame, start_point, end_point)
-                if digits:
-                    print(f"Found: {digits}")
-                    save_to_excel(excel_path, digits)
-                else:
-                    print("No digits detected in the selection.")
-            else:
-                print("Please mark a box first by dragging the mouse.")
+        if key == ord('q'): break
+        elif key == ord('s') and roi_selected:
+            final_digits, _, _ = get_digits_and_contours(frame[y1:y2, x1:x2])
+            save_to_excel(excel_path, final_digits)
 
     cap.release()
     cv2.destroyAllWindows()
