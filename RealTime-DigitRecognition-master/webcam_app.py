@@ -102,6 +102,33 @@ def get_digits_and_contours(roi):
             
     return digits, boxes, thresh
 
+def sum_all_and_append(file_path):
+    """Calculates the total sum of all digits in the Excel file and appends it."""
+    try:
+        wb = load_wb(file_path)
+        ws = wb.active
+        
+        total_sum = 0
+        # Assuming header is at row 1, data starts from row 2
+        # Column 2 is "Identified Digits" which contains "1, 2, 3" style strings
+        for row in range(2, ws.max_row + 1):
+            cell_value = ws.cell(row=row, column=2).value
+            if cell_value and isinstance(cell_value, str):
+                # Clean and parse the comma separated digits
+                parts = [p.strip() for p in cell_value.split(",")]
+                for p in parts:
+                    if p.isdigit():
+                        total_sum += int(p)
+        
+        # Append Total Row
+        ws.append([]) # Empty row for spacing
+        ws.append(["GRAND TOTAL", total_sum])
+        wb.save(file_path)
+        return total_sum
+    except Exception as e:
+        print(f"❌ Error calculating sum: {e}")
+        return None
+
 def main():
     excel_path = select_excel_file()
     cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
@@ -118,7 +145,9 @@ def main():
     print(f"\nTarget File: {excel_path}")
     print("1. Drag a box on the feed.")
     print("2. Align digit inside green boxes.")
-    print("3. Press 'S' to save, 'Q' to quit.")
+    print("3. Press 'S' to save, 'Q' to quit and see TOTAL.")
+
+    session_sum = 0
 
     while True:
         ret, frame = cap.read()
@@ -149,16 +178,28 @@ def main():
                 if preview_thresh is not None:
                     cv2.imshow("AI Preview (Binarized)", preview_thresh)
 
+        # Show Session Progress
+        cv2.putText(display_frame, f"Session Sum: {session_sum}", (10, 30), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+
         cv2.imshow("Webcam Mark Scanner", display_frame)
 
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'): break
         elif key == ord('s') and roi_selected:
             final_digits, _, _ = get_digits_and_contours(frame[y1:y2, x1:x2])
-            save_to_excel(excel_path, final_digits)
+            if final_digits:
+                save_to_excel(excel_path, final_digits)
+                session_sum += sum(final_digits)
 
     cap.release()
     cv2.destroyAllWindows()
+    
+    print("\n--- Session Finished ---")
+    final_total = sum_all_and_append(excel_path)
+    if final_total is not None:
+        print(f"💰 GRAND TOTAL in Excel: {final_total}")
+        print(f"Done! Check {os.path.basename(excel_path)} for the summary.")
 
 if __name__ == "__main__":
     main()
