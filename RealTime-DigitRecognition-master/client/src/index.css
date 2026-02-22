@@ -1,0 +1,110 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --primary: #00f2fe;
+  --secondary: #4facfe;
+  --accent: #f093fb;
+  --bg: #0a0a0c;
+  --card-bg: rgba(255, 255, 255, 0.05);
+  --border: rgba(255, 255, 255, 0.1);
+  --glass: rgba(15, 15, 20, 0.7);
+  --text: #f0f0f0;
+  --text-dim: #a0a0a0;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  background: radial-gradient(circle at top right, #1a1a2e, #0a0a0c);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, .font-outfit {
+  font-family: 'Outfit', sans-serif;
+}
+
+/* Glassmorphism Utility */
+.glass {
+  background: var(--glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.glass-card {
+  background: var(--card-bg);
+  backdrop-filter: blur(4px);
+  border: 1px solid var(--border);
+  transition: all 0.3s ease;
+}
+
+.glass-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+/* Neon Glows */
+.neon-text {
+  text-shadow: 0 0 10px rgba(0, 242, 254, 0.5);
+}
+
+.neon-border {
+  box-shadow: 0 0 15px rgba(0, 242, 254, 0.2);
+}
+
+/* Animations */
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* Buttons */
+.btn-primary {
+  background: linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-primary:hover {
+  box-shadow: 0 0 20px rgba(79, 172, 254, 0.4);
+  transform: scale(1.05);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-dim);
+}
