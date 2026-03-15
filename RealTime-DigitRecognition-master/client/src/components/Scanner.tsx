@@ -22,7 +22,11 @@ const Scanner: React.FC = () => {
         setStatus(save ? 'Saving marks...' : 'Analyzing...');
         
         const imageSrc = webcamRef.current.getScreenshot();
-        if (!imageSrc) return;
+        if (!imageSrc) {
+            setIsScanning(false);
+            setStatus('Could not capture image. Make sure webcam is active.');
+            return;
+        }
 
         try {
             const endpoint = save ? '/save' : '/scan';
@@ -130,6 +134,23 @@ const Scanner: React.FC = () => {
                     <RefreshCcw className="w-4 h-4" />
                     Reset Session
                 </button>
+            </div>
+
+            {/* Excel file path input */}
+            <div className="flex items-center gap-3 glass px-4 py-2 rounded-xl w-full max-w-md">
+                <FileSpreadsheet className="text-secondary w-5 h-5 shrink-0" />
+                <div className="flex flex-col flex-1">
+                    <label className="text-[10px] text-text-dim uppercase tracking-wider mb-0.5">
+                        Output Excel File
+                    </label>
+                    <input
+                        type="text"
+                        value={excelPath}
+                        onChange={(e) => setExcelPath(e.target.value)}
+                        className="bg-transparent text-sm font-mono outline-none text-white"
+                        placeholder="marks.xlsx"
+                    />
+                </div>
             </div>
 
             {/* Results Display */}
